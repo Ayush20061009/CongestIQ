@@ -47,74 +47,62 @@ The platform encompasses twelve core capabilities:
 ```
 TCP_Congestion_Control/
 │
-├── app.py                      # Main Streamlit application entry point
-├── requirements.txt            # Python dependencies
-├── README.md                   # Complete architectural and technical documentation
+├── app.py                        # Main Streamlit dashboard (home page & analytics)
+├── requirements.txt              # Python dependencies
+├── README.md                     # Complete architectural and technical documentation
 │
-├── pages/                      # Multi-page Streamlit views
-│   ├── 1_Dashboard.py          # Executive overview and environment diagnostics
-│   ├── 2_TCP_Concepts.py       # Theory guide (CWND, SSTHRESH, Slow Start, AIMD, Fast Recovery)
-│   ├── 3_Simulation.py         # Single-algorithm interactive simulator
-│   ├── 4_Algorithm_Comparison.py # Side-by-side comparative analysis (Tahoe vs. Reno)
-│   ├── 5_Network_Experiment.py # Mininet topology configuration & iPerf3 execution
-│   └── 6_Packet_Analysis.py    # PCAP/PCAPNG packet capture inspector
+├── pages/                        # Multi-page Streamlit views
+│   ├── 2_TCP_Simulation.py       # Single-algorithm interactive simulator (TCP Tahoe & Reno)
+│   ├── 3_Algorithm_Comparison.py # Side-by-side comparative analysis (Tahoe vs. Reno)
+│   └── 4_Packet_Analysis.py      # PCAP/PCAPNG packet capture inspector
 │
-├── core/                       # Core computational and networking engines
-│   ├── congestion_control.py   # TCP Tahoe & Reno state machines, data structures
-│   ├── network_simulation.py   # Mininet orchestration, tc/netem conditioning, iPerf3 runner
-│   └── packet_analysis.py      # PCAP parsing, duplicate ACK & retransmission extraction
+├── core/                         # Core computational and networking engines
+│   ├── congestion_control.py     # TCP Tahoe & Reno state machines, data structures
+│   ├── network_simulation.py     # Python network emulation engine (kept for test compatibility)
+│   └── packet_analysis.py        # PCAP parsing, duplicate ACK & retransmission extraction
 │
-├── utils/                      # Common support utilities
-│   └── helpers.py              # Platform detection, safe subprocess execution, formatting
+├── utils/                        # Common support utilities
+│   └── helpers.py                # Platform detection, safe subprocess execution, formatting
 │
-├── data/                       # Storage directory for experiment logs and sample PCAP traces
+├── data/                         # Storage directory for experiment logs and sample PCAP traces
 │   └── .gitkeep
 │
-└── tests/                      # Automated test suite
-    └── test_algorithms.py      # Validation tests for schemas, data contracts, and algorithms
+└── tests/                        # Automated test suite
+    └── test_algorithms.py        # Validation tests for schemas, data contracts, and algorithms
 ```
 
 ---
 
 ## 4. System Architecture
 
-The project adheres to a clean separation of concerns, decoupling the presentation layer (Streamlit) from computational modeling, network virtualization, and packet parsing.
+The project adheres to a clean separation of concerns, decoupling the presentation layer (Streamlit) from computational modeling and packet parsing.
 
 ```mermaid
 graph TD
     User([User / Student / Researcher]) -->|Interacts via Browser| UI[Streamlit Multi-Page Web Application]
 
-    subgraph Presentation_Layer [Presentation Layer: pages/]
-        UI --> P1[1. Dashboard]
-        UI --> P2[2. TCP Concepts]
-        UI --> P3[3. Simulation]
-        UI --> P4[4. Algorithm Comparison]
-        UI --> P5[5. Network Experiment]
-        UI --> P6[6. Packet Analysis]
+    subgraph Presentation_Layer [Presentation Layer]
+        UI --> P0[app.py: Dashboard]
+        UI --> P2[2. TCP Simulation]
+        UI --> P3[3. Algorithm Comparison]
+        UI --> P4[4. Packet Analysis]
     end
 
     subgraph Core_Engines [Core Engine Layer: core/]
-        P3 & P4 -->|Execute Parameters| CC[congestion_control.py]
+        P2 & P3 -->|Execute Parameters| CC[congestion_control.py]
         CC --> Tahoe[TCP Tahoe Engine]
         CC --> Reno[TCP Reno Engine]
         Tahoe & Reno --> States[Slow Start / Congestion Avoidance / Fast Recovery]
 
-        P5 -->|Configure Topology & Link| NS[network_simulation.py]
-        NS --> Mininet[Mininet Virtual Network Dumbbell]
-        NS --> Netem[Linux tc / netem Link Conditioning]
-        NS --> iPerf[iPerf3 Client / Server]
-
-        P6 -->|Upload PCAP / PCAPNG| PA[packet_analysis.py]
+        P4 -->|Upload PCAP / PCAPNG| PA[packet_analysis.py]
         PA --> TShark[TShark Wireshark CLI]
         PA --> Scapy[Scapy Python Engine]
     end
 
     subgraph Data_Analytics [Data Analytics & Output Layer]
         Tahoe & Reno -->|SimulationStep Records| DF_Sim[(Simulation DataFrame)]
-        NS -->|Empirical iPerf3 JSON| DF_Exp[(Experiment DataFrame)]
         PA -->|Packet Records| DF_Pkt[(Packet Analysis DataFrame)]
         DF_Sim --> Plotly[Plotly Interactive Charts]
-        DF_Exp --> Plotly
         DF_Pkt --> Plotly
         Plotly --> UI
     end
@@ -123,45 +111,31 @@ graph TD
 ### Information Flow
 
 1. **Simulation Flow**: The user configures initial window parameters, round count, and loss conditions in the Streamlit UI. The configuration is validated and passed to `core.congestion_control`. The selected engine (`TCPTahoe` or `TCPReno`) steps through discrete RTT rounds, dynamically adjusting $CWND$ and $SSTHRESH$. Output steps are packaged into a structured Pandas DataFrame and rendered as an interactive Plotly chart.
-2. **Network Experimentation Flow**: The user specifies bottleneck link bandwidth, delay, and packet loss rate. In an authorized Linux/WSL2 environment, `core.network_simulation` invokes Mininet using safe subprocess calls, applies traffic control policies via `tc/netem`, initiates an iPerf3 server/client session, and captures empirical throughput and retransmission logs.
-3. **Packet Analysis Flow**: A user uploads a `.pcap` or `.pcapng` capture file. `core.packet_analysis` determines the optimal available extraction backend (TShark CLI or Scapy fallback), parses frame headers, extracts sequence/acknowledgement numbers, flags duplicate ACKs and retransmissions, and renders flow timelines.
+2. **Packet Analysis Flow**: A user uploads a `.pcap` or `.pcapng` capture file. `core.packet_analysis` determines the optimal available extraction backend (TShark CLI or Scapy fallback), parses frame headers, extracts sequence/acknowledgement numbers, flags duplicate ACKs and retransmissions, and renders flow timelines.
 
 ---
 
 ## 5. Application Module Specifications
 
-### 1. Dashboard (`pages/1_Dashboard.py`)
-- High-level system status and diagnostic health.
-- Real-time environment detection (Host OS, WSL2 detection, Python version, tool availability).
-- Summary statistics for active simulations and completed experiments.
-- Central navigation directory.
+### Dashboard (`app.py`)
+- Unified landing page and integrated performance dashboard.
+- Session-based KPI overview: Latest Simulation, Tahoe vs. Reno delta, Packet Analysis summary.
+- Simulation Performance section: 8 key metrics, state residency donut chart, SSTHRESH progression, and Tahoe vs. Reno comparison table.
+- Packet Analysis section: 8 capture metrics, TCP flag distribution chart, and retransmission classification breakdown.
+- Quick navigation cards to all three analysis pages.
+- Real-time environment detection (Host OS, Python version, TShark availability).
 
-### 2. TCP Concepts (`pages/2_TCP_Concepts.py`)
-- Educational breakdown of flow control (receiver buffer protection) vs. congestion control (intermediate network protection).
-- Mathematical definitions of $CWND$ and $SSTHRESH$.
-- Detailed explanation of Slow Start ($CWND$ doubling per RTT).
-- AIMD mechanics during Congestion Avoidance ($+1\text{ MSS}$ per RTT, halving on loss).
-- Fast Retransmit (heuristic loss inference on 3 duplicate ACKs) and Fast Recovery.
-- Comparative feature matrix between Tahoe and Reno.
-
-### 3. Simulation (`pages/3_Simulation.py`)
+### 2. TCP Simulation (`pages/2_TCP_Simulation.py`)
 - Parameter configuration interface (Algorithm, initial $CWND$, initial $SSTHRESH$, RTT rounds, loss probability, seed).
 - Deterministic loss injection controls (triggering Timeout vs. 3 Duplicate ACKs at designated rounds).
 - Execution control and parameter validation.
 
-### 4. Algorithm Comparison (`pages/4_Algorithm_Comparison.py`)
+### 3. Algorithm Comparison (`pages/3_Algorithm_Comparison.py`)
 - Synchronized execution of TCP Tahoe and TCP Reno under identical network loss conditions.
 - Side-by-side comparative graphs showing the pipeline-draining penalty of Tahoe versus the Fast Recovery efficiency of Reno.
 - Quantitative comparison table: Peak $CWND$, throughput efficiency, recovery duration, and retransmission overhead.
 
-### 5. Network Emulation (`pages/5_Network_Experiment.py`)
-- Native Python discrete-event network emulation modeling bottleneck link queueing on Windows 10.
-- User-configurable parameters: Bottleneck Bandwidth (Mbps), Propagation Delay (ms), Packet Loss Probability (%), Network Buffer Size (packets), and Simulation Duration (seconds).
-- Models packet transmission, queueing delay, tail-drop buffer overflow, and TCP Tahoe/Reno sender adaptations.
-- Rich Plotly charts: Instantaneous Throughput Timeline, CWND/SSTHRESH Dynamics, Router Buffer Queue Depth, and Observed RTT.
-- All results clearly labeled as simulated network models.
-
-### 6. Packet Analysis (`pages/6_Packet_Analysis.py`)
+### 4. Packet Analysis (`pages/4_Packet_Analysis.py`)
 - Automated ingestion and dissection of `.pcap` and `.pcapng` packet capture traces.
 - TShark CLI integration with pre-flight binary detection and execution timeout protection.
 - Header field extraction: Frame sequence, relative timestamp, IPv4/IPv6 endpoints, TCP ports, sequence & ACK numbers, payload length, advertised receive window, and TCP control flags (SYN, ACK, FIN, RST, PSH, URG, ECE, CWR).

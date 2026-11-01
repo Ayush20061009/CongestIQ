@@ -406,13 +406,6 @@ def render_project_sidebar() -> None:
             st.caption(f"Peak: `{latest['peak_cwnd']:.1f} MSS` | Avg: `{latest['average_cwnd']:.2f} MSS`")
             has_state = True
 
-        if "latest_experiment_result" in st.session_state:
-            exp = st.session_state["latest_experiment_result"]
-            if getattr(exp, "status", "") == "Completed":
-                st.info(f"**Emulation**: `{exp.measured_throughput_mbps:.2f} Mbps`")
-                st.caption(f"Cap: `{exp.configured_bandwidth_mbps:.1f} Mbps` | Loss: `{exp.configured_loss_percentage:.1f}%`")
-                has_state = True
-
         if "latest_packet_analysis" in st.session_state:
             pkt = st.session_state["latest_packet_analysis"]
             if getattr(pkt, "total_tcp_packets", 0) > 0:
@@ -421,7 +414,7 @@ def render_project_sidebar() -> None:
                 has_state = True
 
         if not has_state:
-            st.caption("No session data logged yet. Run a simulation or network emulation.")
+            st.caption("No session data logged yet. Run a simulation or packet analysis.")
 
         st.divider()
         

@@ -53,37 +53,7 @@ def generate_comparison_explanation(comp_df: pd.DataFrame, summary: Dict[str, An
         "that Tahoe and Reno operate identically in uncongested Slow Start."
     )
 
-    # 2. Loss Recovery Behavior
-    loss_steps = comp_df[comp_df["Loss_Event"] != "None"]
-    if not loss_steps.empty:
-        for _, row in loss_steps.iterrows():
-            r_num = int(row["RTT_Round"])
-            ev_type = row["Loss_Event"]
-            t_drop = row["Tahoe_CWND"]
-            r_drop = row["Reno_CWND"]
-            diff = row["CWND_Difference"]
-
-            if "Triple Duplicate" in ev_type:
-                explanations.append(
-                    f"**Reaction to 3 Duplicate ACKs at Round {r_num}**: "
-                    f"TCP Tahoe suffered a complete window collapse to {t_drop:.1f} MSS and re-entered Slow Start. "
-                    f"In contrast, TCP Reno invoked **Fast Retransmit & Fast Recovery**, setting CWND to {r_drop:.1f} MSS "
-                    f"(a +{diff:.1f} MSS advantage). In the next round, Reno deflated to SSTHRESH and resumed Congestion Avoidance, "
-                    f"completely avoiding the Slow Start penalty."
-                )
-            elif "Timeout" in ev_type:
-                explanations.append(
-                    f"**Reaction to RTO Timeout at Round {r_num}**: Both algorithms detected severe network congestion. "
-                    f"Tahoe and Reno responded identically: both halved SSTHRESH, collapsed CWND to 1.0 MSS, "
-                    f"and returned to Slow Start."
-                )
-    else:
-        explanations.append(
-            "**Zero Packet Loss Scenario**: No congestion events were injected. Both algorithms progressed "
-            "identically through Slow Start into Congestion Avoidance with zero divergence."
-        )
-
-    # 3. Objective Throughput & Window Comparison
+    # 2. Objective Throughput & Window Comparison
     if fast_retrans > 0 and timeouts == 0:
         explanations.append(
             f"**Throughput Advantage**: Because packet loss was handled via Fast Retransmit without timeouts, "
@@ -196,18 +166,7 @@ def main() -> None:
         comp_df = st.session_state["comparison_df"]
         summary = st.session_state["comparison_summary"]
 
-        st.header("2. Comparative Performance Metrics")
-
-        m1, m2, m3, m4 = st.columns(4)
-        adv = summary["reno_throughput_advantage_percent"]
-        m1.metric("Reno Throughput Advantage", f"+{adv:.1f}%" if adv >= 0 else f"{adv:.1f}%")
-        m2.metric("Average CWND (Tahoe vs Reno)", f"{summary['tahoe_average_cwnd']:.2f} / {summary['reno_average_cwnd']:.2f} MSS")
-        m3.metric("Final CWND (Tahoe vs Reno)", f"{summary['tahoe_final_cwnd']:.1f} / {summary['reno_final_cwnd']:.1f} MSS")
-        m4.metric("Peak CWND (Tahoe vs Reno)", f"{summary['tahoe_peak_cwnd']:.1f} / {summary['reno_peak_cwnd']:.1f} MSS")
-
-        st.divider()
-
-        st.header("3. Interactive Comparison Charts")
+        st.header("2. Interactive Comparison Charts")
 
         tab_cwnd, tab_ssthresh, tab_state, tab_table, tab_explain = st.tabs([
             "📈 CWND Comparison Chart",
@@ -239,7 +198,7 @@ def main() -> None:
             st.plotly_chart(fig_cmp_state, use_container_width=True)
 
         with tab_table:
-            st.subheader("8. Formal Comparison Summary Table")
+            st.subheader("Formal Comparison Summary Table")
             
             # Format required summary table
             tahoe_last_state = comp_df["Tahoe_State"].iloc[-1]

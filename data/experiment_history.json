@@ -52,5 +52,23 @@
     "status": "Completed",
     "error_message": null,
     "is_simulated": true
+  },
+  {
+    "experiment_id": "EXP-001",
+    "configured_bandwidth_mbps": 10.0,
+    "configured_delay_ms": 20.0,
+    "configured_loss_percentage": 0.5,
+    "configured_buffer_size": 50,
+    "measured_throughput_mbps": 4.32,
+    "transfer_amount_mb": 5.16,
+    "measured_retransmissions": 24,
+    "measured_rtt_ms": 41.2,
+    "experiment_duration_sec": 10.01,
+    "tcp_congestion_algorithm": "reno",
+    "buffer_drops": 0,
+    "random_drops": 24,
+    "status": "Completed",
+    "error_message": null,
+    "is_simulated": true
   }
 ]
